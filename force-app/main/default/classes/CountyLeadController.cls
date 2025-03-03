@@ -89,25 +89,59 @@ public with sharing class CountyLeadController {
         return failedLeads; // Return structured data
     }
 
-
     @AuraEnabled
-    public static void sendEmailNotification(Integer insertedCount, Integer failedCount) {
+    public static void sendEmailNotification(Integer insertedCount, Integer failedCount, List<Map<String, String>> failedLeads) {
      try {
         Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
         mail.setToAddresses(new String[]{'bensaid303@gmail.com'});
         mail.setSubject('Lead Import Summary');
-        mail.setPlainTextBody('The following lead import has been completed:\n\n' + 
-                      '* Leads created successfully: ' + insertedCount + '\n' + 
-                      '* Leads failed to insert: ' + failedCount + '\n\n' + 
-                      'Best regards,\nSalesforce System' + '\n' + 
-                      'Timestamp: ' + System.now() 
-                      );
+        
+        // Email body
+        String htmlBody = '<html><body>' +
+            '<p>The following lead import has been completed:</p>' +
+            '<ul>' +
+            '<li><strong>Leads created successfully:</strong> ' + insertedCount + '</li>' +
+            '<li><strong>Leads failed to insert:</strong> ' + failedCount + '</li>' +
+            '</ul>' +
+            '<p>Best regards,<br>Salesforce System</p>' +
+            '</body></html>';
+        
+        mail.setHtmlBody(htmlBody);
 
-        Messaging.sendEmail(new Messaging.SingleEmailMessage[]{ mail });
+        // Generate CSV content
+        if (!failedLeads.isEmpty()) {
+            String csvData = 'FirstName,LastName,Company,Phone,Email,Property_Owner__c,Site_Acreage__c,Parcel_ID__c,Site_Address__c,Site_City__c,County__c,Lead_Land_Owner_Address__City__s,Lead_Land_Owner_Address__StateCode__s,Lead_Land_Owner_Address__PostalCode__s,Error\n';
+
+            for (Map<String, String> lead : failedLeads) {
+                csvData += '"' + lead.get('FirstName') + '","' + lead.get('LastName') + '","' + lead.get('Company') + '","' +
+                           lead.get('Phone') + '","' + lead.get('Email') + '","' + lead.get('Property_Owner__c') + '","' +
+                           lead.get('Site_Acreage__c') + '","' + lead.get('Parcel_ID__c') + '","' + lead.get('Site_Address__c') + '","' +
+                           lead.get('Site_City__c') + '","' + lead.get('County__c') + '","' + lead.get('Lead_Land_Owner_Address__City__s') + '","' +
+                           lead.get('Lead_Land_Owner_Address__StateCode__s') + '","' + lead.get('Lead_Land_Owner_Address__PostalCode__s') + '","' +
+                           lead.get('Error') + '"\n';
+            }
+
+            // Convert CSV string to Blob
+            Blob csvBlob = Blob.valueOf(csvData);
+
+            // Create email attachment
+            Messaging.EmailFileAttachment attachment = new Messaging.EmailFileAttachment();
+            attachment.setFilename('Failed_Leads.csv');
+            attachment.setBody(csvBlob);
+            attachment.setContentType('text/csv');
+
+            // Attach the CSV file to the email
+            mail.setFileAttachments(new Messaging.EmailFileAttachment[]{attachment});
+        }
+
+        // Send email
+        Messaging.sendEmail(new Messaging.SingleEmailMessage[]{mail});
         
     } catch (Exception e) {
         throw new AuraHandledException('Error sending email: ' + e.getMessage());
     }
 }
+
+    
 
 }

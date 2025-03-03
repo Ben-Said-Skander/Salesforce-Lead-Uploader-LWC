@@ -30,7 +30,6 @@ export default class LeadUploader extends LightningElement {
         const headers = rows[0].split(',');
         const leadsToInsert = [];
 
-
         for (let i = 1; i < rows.length; i++) {
             if (!rows[i].trim()) continue;
             const values = rows[i].split(',');
@@ -110,7 +109,8 @@ export default class LeadUploader extends LightningElement {
     
                     return sendEmailNotification({ 
                         insertedCount: this.leadCount, 
-                        failedCount: this.failedLeadCount 
+                        failedCount: this.failedLeadCount,
+                        failedLeads: this.failedLeads // Pass failed leads list
                     });
                 })
                 .then(() => {
@@ -124,11 +124,6 @@ export default class LeadUploader extends LightningElement {
         }
     }
     
-
-    showToast(title, message, variant) {
-        this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
-    }
-
     // Download failed leads as CSV
     downloadFailedLeads() {
         if (this.failedLeads.length > 0) {
@@ -167,7 +162,7 @@ export default class LeadUploader extends LightningElement {
             lead.Lead_Land_Owner_Address__City__s || '',
             lead.Lead_Land_Owner_Address__StateCode__s || '',
             lead.Lead_Land_Owner_Address__PostalCode__s || '',
-            lead.Error || '' // Add error message in the last column
+            lead.Error || '' 
         ]);
 
         // Generate CSV content
@@ -188,6 +183,10 @@ export default class LeadUploader extends LightningElement {
         this.showToast('Error', 'No failed leads to download', 'error');
     }
 }
+
+    showToast(title, message, variant) {
+       this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
+    }
 
     // Getter for inserted leads table
     get hasLeads() {
