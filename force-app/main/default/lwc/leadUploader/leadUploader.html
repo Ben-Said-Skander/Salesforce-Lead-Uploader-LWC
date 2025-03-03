@@ -8,19 +8,24 @@
             </template>
 
             <lightning-button label="Upload Leads" variant="brand" class="slds-m-top_medium" onclick={handleUpload}></lightning-button>
+            
+            <template if:true={hasFailedLeads}>
+                <lightning-button 
+                    label="Download Failed Leads" 
+                    variant="destructive" 
+                    class="slds-m-left_small" 
+                    onclick={downloadFailedLeads}>
+                </lightning-button>
+
+            </template>
         </div>
 
         <template if:true={hasLeads}>
-            <lightning-card >
+            <lightning-card>
                 <p class="slds-m-left_medium"><strong>Number of Leads Inserted :</strong> {leadCount}</p>
                 <p class="slds-m-left_medium"><strong>Number of Failed Leads :</strong> {failedLeads.length}</p>
             </lightning-card>
         </template>
 
-        <template if:true={hasFailedLeads}>
-            <lightning-card title="Failed Leads">
-                <lightning-datatable key-field="rowKey" data={failedLeads} columns={columns}></lightning-datatable>
-            </lightning-card>
-        </template>
     </lightning-card>
 </template>

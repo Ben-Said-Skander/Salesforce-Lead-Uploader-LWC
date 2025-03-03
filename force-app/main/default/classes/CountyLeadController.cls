@@ -1,17 +1,17 @@
 public with sharing class CountyLeadController {
-    
+
     @AuraEnabled
-    public static List<Lead> insertLeads(List<Lead> leadList) {
-        List<Lead> insertedLeads = new List<Lead>();
+    public static List<Map<String, String>> insertLeads(List<Lead> leadList) {
+        List<Map<String, String>> failedLeads = new List<Map<String, String>>();
+
+        // Collect county names
         Set<String> countyNames = new Set<String>();
-    
-        // Collect county names from the leads
         for (Lead lead : leadList) {
             if (String.isNotBlank(lead.County__c)) { 
                 countyNames.add(lead.County__c);
             }
         }
-    
+
         // Query existing counties
         Map<String, Id> countyMap = new Map<String, Id>();
         if (!countyNames.isEmpty()) {
@@ -19,7 +19,7 @@ public with sharing class CountyLeadController {
                 countyMap.put(county.Name, county.Id);
             }
         }
-    
+
         // Ensure "UNKNOWN" state exists
         List<State__c> unknownState = [SELECT Id FROM State__c WHERE Name = 'UNKNOWN'];
         State__c newState;
@@ -30,7 +30,7 @@ public with sharing class CountyLeadController {
         } else {
             newState = unknownState[0];
         }
-    
+
         // Create new counties if they don't exist
         List<County__c> newCounties = new List<County__c>();
         for (String countyName : countyNames) {
@@ -38,32 +38,57 @@ public with sharing class CountyLeadController {
                 newCounties.add(new County__c(Name = countyName, State__c = newState.Id));
             }
         }
-    
+
         if (!newCounties.isEmpty()) {
             insert newCounties;
             for (County__c county : newCounties) {
                 countyMap.put(county.Name, county.Id);
             }
         }
-    
+
         // Assign correct County__c Ids to leads
         for (Lead lead : leadList) {
             if (String.isNotBlank(lead.County__c) && countyMap.containsKey(lead.County__c)) {
                 lead.County__c = countyMap.get(lead.County__c);
             }
         }
-    
+
         // Insert leads with partial success handling
         List<Database.SaveResult> results = Database.insert(leadList, false);
+ 
+        // Collect failed leads with structured data
         for (Integer i = 0; i < results.size(); i++) {
-            if (results[i].isSuccess()) {
-                insertedLeads.add(leadList[i]); // Add successfully inserted lead
+            if (!results[i].isSuccess()) {
+                Map<String, String> failedLeadData = new Map<String, String>();
+                failedLeadData.put('FirstName', leadList[i].FirstName);
+                failedLeadData.put('LastName', leadList[i].LastName);
+                failedLeadData.put('Company', leadList[i].Company);
+                failedLeadData.put('Phone', leadList[i].Phone);
+                failedLeadData.put('Email', leadList[i].Email);
+                failedLeadData.put('Property_Owner__c', leadList[i].Property_Owner__c);
+                failedLeadData.put('Site_Acreage__c', String.valueOf(leadList[i].Site_Acreage__c));
+                failedLeadData.put('Parcel_ID__c', leadList[i].Parcel_ID__c);
+                failedLeadData.put('Site_Address__c', leadList[i].Site_Address__c);
+                failedLeadData.put('Site_City__c', leadList[i].Site_City__c);
+                failedLeadData.put('County__c', leadList[i].County__c);
+                failedLeadData.put('Lead_Land_Owner_Address__City__s', leadList[i].Lead_Land_Owner_Address__City__s);
+                failedLeadData.put('Lead_Land_Owner_Address__StateCode__s', leadList[i].Lead_Land_Owner_Address__StateCode__s);
+                failedLeadData.put('Lead_Land_Owner_Address__PostalCode__s', leadList[i].Lead_Land_Owner_Address__PostalCode__s);
+
+                // Collect error messages
+                String errorMessage = '';
+                for (Database.Error error : results[i].getErrors()) {
+                    errorMessage += error.getMessage() + ' ';
+                }
+                failedLeadData.put('Error', errorMessage.trim());
+
+                failedLeads.add(failedLeadData);
             }
         }
-    
-        return insertedLeads; // Return only successfully inserted leads
+
+        return failedLeads; // Return structured data
     }
-    
+
 
     @AuraEnabled
     public static void sendEmailNotification(Integer insertedCount, Integer failedCount) {

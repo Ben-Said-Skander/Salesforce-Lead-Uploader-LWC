@@ -1,0 +1,13 @@
+.slds-m-left_small {
+    margin-left: 10px; /* Adjust as necessary for spacing */
+}
+
+button.slds-button_destructive {
+    background-color: #e10000; /* Red color */
+    border-color: #d11f2b;     /* Darker red border */
+}
+
+button.slds-button_destructive:hover {
+    background-color: #b30000; /* Darker red on hover */
+    border-color: #9b1d28;     /* Darker border on hover */
+}
