@@ -58,7 +58,7 @@ export default class LeadUploader extends LightningElement {
                         lead.LastName = value || null;
                     } else if (trimmedHeader === 'Owner 1 First Name') {
                         lead.FirstName = value || null;
-                    } else if (trimmedHeader === 'Prop Ind Mapping') {
+                    } else if (trimmedHeader === 'Owner 1 Last Name') {
                         lead.Company = value || null ;
                     } else if (trimmedHeader === 'Acreage') {
                         lead.Site_Acreage__c = value ? parseFloat(value) : null;
@@ -79,7 +79,7 @@ export default class LeadUploader extends LightningElement {
                     } else if (trimmedHeader === 'Parcel Address') {
                         lead.Site_Address__c = value || null;
                     } else if (trimmedHeader === 'Parcel County') {
-                        lead.County__c = value || null;
+                        lead.County__c = (value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()) + ' County (' + (lead.Lead_Land_Owner_Address__StateCode__s || '') + ')';
                     } else if (trimmedHeader === 'Parcel City') {
                         lead.Site_City__c = value || null;
                     }
@@ -102,15 +102,17 @@ export default class LeadUploader extends LightningElement {
     handleUpload() {
         if (this.fileData && this.fileData.length > 0) {
             insertLeads({ leadList: this.fileData })
-                .then((failedLeads) => {
-                    this.failedLeads = failedLeads;
+                .then((result) => {
+                    this.uploadedLeads = result.insertedLeads;
+                    this.failedLeads = result.failedLeads;
                     this.failedLeadCount = this.failedLeads.length;
-                    this.leadCount = this.fileData.length - this.failedLeadCount;
+                    this.leadCount = this.uploadedLeads.length;
     
                     return sendEmailNotification({ 
                         insertedCount: this.leadCount, 
                         failedCount: this.failedLeadCount,
-                        failedLeads: this.failedLeads // Pass failed leads list
+                        insertedLeads: this.uploadedLeads, 
+                        failedLeads: this.failedLeads 
                     });
                 })
                 .then(() => {
@@ -123,6 +125,7 @@ export default class LeadUploader extends LightningElement {
             this.showToast('Error', 'No valid data to upload', 'error');
         }
     }
+    
     
     // Download failed leads as CSV
     downloadFailedLeads() {
